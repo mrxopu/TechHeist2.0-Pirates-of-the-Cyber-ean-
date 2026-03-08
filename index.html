@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE TECH HEIST – Pirates of the Cyber-ean</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+  :root {
+    --gold: #f5c842;
+    --red: #e63946;
+    --green: #39ff14;
+    --cyan: #00f5ff;
+    --dark: #050a0e;
+    --dark2: #0a1520;
+    --dark3: #0f1f30;
+    --border: rgba(0,245,255,0.25);
+    --text: #c8d8e8;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── TIMER BAR (always visible) ── */
+  #timer-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    background: rgba(5,10,14,0.97);
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 28px;
+    backdrop-filter: blur(10px);
+  }
+  #timer-bar .tb-left { font-family: 'Orbitron', monospace; font-size: 11px; color: var(--cyan); letter-spacing: 3px; }
+  #timer-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 6px;
+    text-shadow: 0 0 20px rgba(245,200,66,0.6);
+    transition: color 0.5s;
+  }
+  #timer-display.danger { color: var(--red); text-shadow: 0 0 20px rgba(230,57,70,0.8); animation: pulse 0.8s infinite; }
+  #hint-counter {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    color: var(--red);
+    letter-spacing: 2px;
+  }
+
+  /* ── PAGES ── */
+  .page { display: none; min-height: 100vh; padding-top: 65px; }
+  .page.active { display: flex; flex-direction: column; }
+
+  /* ── LANDING PAGE ── */
+  #page-landing {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(ellipse at 50% 50%, #0d2035 0%, var(--dark) 70%);
+    position: relative;
+    overflow: hidden;
+  }
+  #page-landing::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300f5ff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  .landing-content { position: relative; z-index: 1; max-width: 900px; padding: 40px 24px; }
+
+  .skull-icon { font-size: 72px; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(245,200,66,0.5)); animation: float 4s ease-in-out infinite; }
+
+  .landing-subtitle {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 8px;
+    color: var(--cyan);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  .landing-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(22px, 4vw, 48px);
+    font-weight: 900;
+    color: var(--gold);
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    text-shadow: 0 0 40px rgba(245,200,66,0.4);
+  }
+  .landing-title span { color: var(--red); }
+
+  .divider { width: 80px; height: 3px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); margin: 24px auto; }
+
+  .landing-body {
+    font-family: 'Courier Prime', monospace;
+    font-size: 15px;
+    line-height: 1.85;
+    color: #a8c0d0;
+    max-width: 720px;
+    margin: 0 auto 32px;
+    text-align: left;
+  }
+  .landing-body p { margin-bottom: 16px; }
+  .landing-body .highlight { color: var(--gold); font-weight: 700; }
+  .landing-body .red { color: var(--red); font-weight: 700; }
+
+  .roll-format {
+    background: rgba(0,245,255,0.05);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--cyan);
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .roll-format span { color: var(--cyan); font-size: 20px; letter-spacing: 6px; display: block; margin-top: 8px; }
+
+  .start-btn {
+    background: transparent;
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    padding: 18px 56px;
+    cursor: pointer;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    margin-top: 8px;
+  }
+  .start-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gold);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+  }
+  .start-btn span { position: relative; z-index: 1; }
+  .start-btn:hover::before { transform: scaleX(1); }
+  .start-btn:hover { color: var(--dark); }
+  .start-btn:hover span { color: var(--dark); }
+
+  /* ── MISSION HQ / CLUES PAGE ── */
+  #page-hq {
+    flex-direction: column;
+    background: var(--dark2);
+    min-height: 100vh;
+  }
+
+  .hq-header {
+    background: linear-gradient(135deg, var(--dark3), var(--dark));
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 20px;
+    text-align: center;
+  }
+  .hq-header h1 { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900; color: var(--gold); letter-spacing: 6px; }
+  .hq-header p { font-size: 11px; color: var(--cyan); letter-spacing: 4px; margin-top: 4px; }
+
+  /* ── CLUE GRID ── */
+  .clues-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 32px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .clue-card {
+    background: var(--dark3);
+    border: 1px solid var(--border);
+    padding: 28px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+    overflow: hidden;
+  }
+  .clue-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--cyan);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform 0.3s;
+  }
+  .clue-card:hover { border-color: var(--cyan); transform: translateY(-4px); box-shadow: 0 8px 30px rgba(0,245,255,0.1); }
+  .clue-card:hover::before { transform: scaleY(1); }
+  .clue-card.solved { border-color: var(--green); }
+  .clue-card.solved::before { background: var(--green); transform: scaleY(1); }
+
+  .clue-number { font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 4px; color: var(--cyan); margin-bottom: 8px; }
+  .clue-title { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+  .clue-desc { font-size: 12px; color: #7a9ab0; line-height: 1.7; margin-bottom: 16px; }
+  .clue-status {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 4px 12px;
+    border: 1px solid;
+    display: inline-block;
+  }
+  .clue-status.locked { color: var(--red); border-color: var(--red); }
+  .clue-status.open { color: var(--gold); border-color: var(--gold); }
+  .clue-status.solved { color: var(--green); border-color: var(--green); }
+
+  .clue-icon { font-size: 40px; float: right; opacity: 0.3; margin-top: -8px; }
+
+  /* ── FINAL ANSWER SECTION ── */
+  .final-section {
+    max-width: 700px;
+    margin: 0 auto 40px;
+    padding: 0 40px;
+  }
+  .final-box {
+    background: var(--dark3);
+    border: 2px solid var(--gold);
+    padding: 32px;
+    text-align: center;
+  }
+  .final-box h2 { font-family: 'Orbitron', monospace; font-size: 16px; color: var(--gold); letter-spacing: 4px; margin-bottom: 16px; }
+  .final-box p { font-size: 12px; color: #7a9ab0; margin-bottom: 20px; }
+  .roll-input-group { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .roll-segment {
+    background: var(--dark);
+    border: 1px solid var(--border);
+    color: var(--gold);
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 3px;
+    padding: 12px 8px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .roll-segment:focus { border-color: var(--gold); }
+  .roll-segment.w2 { width: 52px; }
+  .roll-segment.w3 { width: 64px; }
+  .roll-segment.w1 { width: 44px; }
+  .roll-sep { color: var(--cyan); font-family: 'Orbitron', monospace; font-size: 22px; line-height: 52px; }
+  .submit-btn {
+    margin-top: 20px;
+    background: transparent;
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 4px;
+    padding: 14px 40px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+  }
+  .submit-btn:hover { background: var(--gold); color: var(--dark); }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 5000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal-box {
+    background: var(--dark2);
+    border: 1px solid var(--border);
+    max-width: 680px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 0 60px rgba(0,245,255,0.1);
+  }
+  .modal-box::-webkit-scrollbar { width: 4px; }
+  .modal-box::-webkit-scrollbar-track { background: var(--dark); }
+  .modal-box::-webkit-scrollbar-thumb { background: var(--cyan); }
+
+  .modal-header {
+    background: var(--dark3);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .modal-header h2 { font-family: 'Orbitron', monospace; font-size: 13px; color: var(--gold); letter-spacing: 4px; }
+  .modal-close {
+    background: none;
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-close:hover { background: var(--red); color: #fff; }
+  .modal-body { padding: 28px 24px; }
+
+  /* ── CLUE 1: IMAGE PUZZLE ── */
+  .encrypted-img-container {
+    position: relative;
+    margin: 0 auto 24px;
+    max-width: 480px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .encrypted-img-container img { width: 100%; display: block; filter: blur(12px) brightness(0.4); transition: filter 1s; }
+  .encrypted-img-container.revealed img { filter: none; }
+  .img-lock-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,10,14,0.5);
+    transition: opacity 0.8s;
+  }
+  .encrypted-img-container.revealed .img-lock-overlay { opacity: 0; pointer-events: none; }
+  .img-lock-overlay .lock-icon { font-size: 48px; margin-bottom: 8px; }
+  .img-lock-overlay p { font-size: 11px; color: var(--cyan); letter-spacing: 3px; }
+
+  /* ── PUZZLE INPUT AREA ── */
+  .puzzle-section { margin-bottom: 24px; }
+  .puzzle-section label { font-size: 11px; color: var(--cyan); letter-spacing: 3px; display: block; margin-bottom: 8px; }
+  .puzzle-section .riddle { background: rgba(0,245,255,0.04); border-left: 3px solid var(--cyan); padding: 14px 16px; font-size: 13px; line-height: 1.7; color: #a0c0d4; margin-bottom: 16px; font-family: 'Courier Prime', monospace; font-style: italic; }
+  .puzzle-input {
+    width: 100%;
+    background: var(--dark);
+    border: 1px solid var(--border);
+    color: var(--gold);
+    font-family: 'Orbitron', monospace;
+    font-size: 16px;
+    letter-spacing: 4px;
+    padding: 14px 16px;
+    outline: none;
+    text-transform: uppercase;
+    transition: border-color 0.2s;
+    text-align: center;
+  }
+  .puzzle-input:focus { border-color: var(--gold); }
+  .puzzle-input.wrong { border-color: var(--red); animation: shake 0.3s; }
+  .puzzle-input.correct { border-color: var(--green); }
+
+  .check-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .check-btn:hover { background: var(--cyan); color: var(--dark); }
+
+  /* ── HINTS ── */
+  .hints-container { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px; }
+  .hints-container h4 { font-family: 'Orbitron', monospace; font-size: 11px; color: #5a7a8a; letter-spacing: 3px; margin-bottom: 14px; }
+  .hint-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(230,57,70,0.06);
+    border: 1px solid rgba(230,57,70,0.3);
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .hint-btn:hover:not(:disabled) { border-color: var(--red); background: rgba(230,57,70,0.12); }
+  .hint-btn:disabled { opacity: 0.4; cursor: default; }
+  .hint-btn .hb-icon { font-size: 18px; flex-shrink: 0; }
+  .hint-content {
+    background: rgba(230,57,70,0.05);
+    border: 1px dashed rgba(230,57,70,0.4);
+    padding: 14px 16px;
+    font-size: 12px;
+    color: #e0a0a8;
+    line-height: 1.7;
+    margin-bottom: 10px;
+    font-family: 'Courier Prime', monospace;
+    animation: fadeIn 0.4s;
+  }
+  .hint-penalty { font-size: 10px; color: #5a3a3a; letter-spacing: 1px; margin-top: 4px; }
+
+  /* ── VIDEO CLUE ── */
+  .video-wrapper { position: relative; width: 100%; margin-bottom: 20px; background: #000; border: 1px solid var(--border); }
+  .video-wrapper video { width: 100%; display: block; }
+
+  /* ── PDF CLUE ── */
+  .pdf-card { background: var(--dark); border: 1px solid var(--border); padding: 24px; text-align: center; margin-bottom: 20px; }
+  .pdf-icon { font-size: 56px; margin-bottom: 12px; }
+  .pdf-card h3 { font-family: 'Orbitron', monospace; font-size: 13px; color: var(--gold); letter-spacing: 3px; margin-bottom: 8px; }
+  .pdf-card p { font-size: 12px; color: #6a8a9a; margin-bottom: 16px; }
+  .pdf-status { font-size: 11px; color: #5a7a8a; letter-spacing: 2px; margin-top: 12px; }
+  .pdf-password-display { font-family: 'Orbitron', monospace; font-size: 20px; color: var(--green); letter-spacing: 6px; padding: 12px; border: 1px solid var(--green); margin-top: 12px; display: none; }
+  .pdf-password-display.visible { display: block; animation: fadeIn 0.5s; }
+
+  /* ── CODE CLUE ── */
+  .iframe-wrapper { width: 100%; height: 400px; border: 1px solid var(--border); overflow: hidden; }
+  .iframe-wrapper iframe { width: 100%; height: 100%; border: none; background: #000; }
+  .external-link-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .external-link-btn:hover { background: var(--cyan); color: var(--dark); }
+
+  /* ── QUIZ CLUE 4 ── */
+  .quiz-img-container { position: relative; margin-bottom: 20px; border: 1px solid var(--border); overflow: hidden; }
+  .quiz-img-container img { width: 100%; display: block; filter: blur(14px) brightness(0.3); transition: filter 1s; }
+  .quiz-img-container.revealed img { filter: none; }
+  .quiz-score { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--cyan); letter-spacing: 3px; text-align: center; margin-bottom: 16px; }
+  .quiz-question { background: rgba(0,245,255,0.04); border-left: 3px solid var(--cyan); padding: 14px 16px; font-size: 13px; color: #a0c0d4; margin-bottom: 16px; line-height: 1.6; }
+  .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .quiz-opt {
+    background: var(--dark);
+    border: 1px solid var(--border);
+    color: #a0b8c8;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    padding: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+  }
+  .quiz-opt:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  .quiz-opt.correct { border-color: var(--green); color: var(--green); background: rgba(57,255,20,0.05); }
+  .quiz-opt.wrong { border-color: var(--red); color: var(--red); background: rgba(230,57,70,0.05); }
+  .quiz-next-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: none;
+  }
+  .quiz-next-btn.show { display: block; }
+  .quiz-next-btn:hover { background: var(--gold); color: var(--dark); }
+
+  /* ── CONFIRMATION MODAL ── */
+  #confirm-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+  }
+  #confirm-modal.open { display: flex; }
+  .confirm-box {
+    background: var(--dark2);
+    border: 2px solid var(--red);
+    padding: 36px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(230,57,70,0.3);
+  }
+  .confirm-box .warn-icon { font-size: 48px; margin-bottom: 16px; }
+  .confirm-box h3 { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--red); letter-spacing: 3px; margin-bottom: 12px; }
+  .confirm-box p { font-size: 13px; color: #8a9a9a; margin-bottom: 24px; line-height: 1.6; }
+  .confirm-btns { display: flex; gap: 12px; }
+  .confirm-yes {
+    flex: 1;
+    background: transparent;
+    border: 2px solid var(--red);
+    color: var(--red);
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .confirm-yes:hover { background: var(--red); color: #fff; }
+  .confirm-no {
+    flex: 1;
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--text);
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .confirm-no:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* ── SUCCESS PAGE ── */
+  #page-success {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(ellipse at 50% 30%, #0a2510 0%, var(--dark) 70%);
+  }
+  .success-content { padding: 40px 24px; }
+  .success-content .trophy { font-size: 80px; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 0 30px rgba(57,255,20,0.4)); }
+  .success-content h1 { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 900; color: var(--green); letter-spacing: 6px; margin: 24px 0 8px; }
+  .success-content h2 { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--gold); letter-spacing: 4px; margin-bottom: 24px; }
+  .result-card { background: var(--dark3); border: 1px solid var(--green); padding: 28px; max-width: 480px; margin: 0 auto 24px; }
+  .result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+  .result-row:last-child { border-bottom: none; }
+  .result-row .rl { color: #6a8a9a; letter-spacing: 2px; }
+  .result-row .rv { color: var(--gold); font-weight: 700; letter-spacing: 2px; }
+  .result-row .rv.green { color: var(--green); }
+  .result-row .rv.red { color: var(--red); }
+
+  /* ── MESSAGE ── */
+  .msg { font-size: 12px; padding: 10px 14px; border-radius: 0; margin-top: 10px; letter-spacing: 1px; }
+  .msg.success { background: rgba(57,255,20,0.08); border: 1px solid var(--green); color: var(--green); }
+  .msg.error { background: rgba(230,57,70,0.08); border: 1px solid var(--red); color: var(--red); }
+  .msg.info { background: rgba(0,245,255,0.06); border: 1px solid var(--cyan); color: var(--cyan); }
+
+  /* ── KEYFRAMES ── */
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes glitch {
+    0%,100%{clip-path:inset(0 0 98% 0)}
+    10%{clip-path:inset(20% 0 60% 0)}
+    20%{clip-path:inset(80% 0 5% 0)}
+    30%{clip-path:inset(40% 0 40% 0)}
+    40%{clip-path:inset(0 0 98% 0)}
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:600px) {
+    .clues-grid { grid-template-columns: 1fr; padding: 16px; }
+    .quiz-options { grid-template-columns: 1fr; }
+    .roll-input-group { gap: 4px; }
+    #timer-display { font-size: 20px; }
+  }
+
+  .glitch-text {
+    position: relative;
+    display: inline-block;
+  }
+  .glitch-text::before, .glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0; top: 0;
+    color: var(--cyan);
+    opacity: 0.6;
+  }
+  .glitch-text::before { animation: glitch 3s infinite 0.3s; }
+  .glitch-text::after { animation: glitch 3s infinite 0.6s; color: var(--red); }
+
+  .solved-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: var(--green);
+    color: var(--dark);
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 4px 8px;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ TIMER BAR ══ -->
+<div id="timer-bar">
+  <div class="tb-left">⚡ TECH HEIST</div>
+  <div id="timer-display">03:00:00</div>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div id="hint-counter">HINTS USED: <span id="hint-count">0</span></div>
+    <div style="font-family:'Orbitron',monospace;font-size:11px;color:var(--red);letter-spacing:2px;">PENALTY: <span id="penalty-display">0</span> PTS</div>
+    <button onclick="buyTime()" style="background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;padding:5px 10px;cursor:pointer;transition:all 0.2s;" title="+15 minutes, −15 points">+15 MIN</button>
+  </div>
+</div>
+
+
+<div id="page-landing" class="page active">
+  <div class="landing-content">
+    <div class="skull-icon">☠️</div>
+    <div class="landing-subtitle">TechManiacs IIT Tirupati Classified Operation</div>
+    <h1 class="landing-title">
+      <span class="glitch-text" data-text="Welcome Pirates of the">Welcome Pirates of the</span><br>
+      Cyber-<span>ean</span> –<br>
+      THE TECH HEIST
+    </h1>
+    <div class="divider"></div>
+    <div class="landing-body">
+      <p>The <span class="highlight">unthinkable</span> has happened. The <span class="highlight">Inter IIT 13.0 Trophy and Medals</span> have been stolen from the campus vault. The culprit, a mastermind of deception, has vanished into the digital void — leaving behind a trail of <span class="red">cryptic clues</span>: scrambled audio, encrypted texts, and ghost-like digital footprints.</p>
+      <p>We are recruiting the <span class="highlight">sharpest minds</span> to form elite detective units. Your mission is clear: <span class="red">Decode the evidence, identify the thief's identity, and recover the stolen glory.</span></p>
+      <div class="roll-format">
+        🎯 THE THIEF'S IDENTITY IS A ROLL NUMBER, Sample:
+        <span>EE  23  B  070</span>
+        EE, 23, B, 070 - 4 DIFFERENT CODES, 4 DIFFERENT MAIN PUZZLES · 4 HINTS · IDENTIFY THE THIEF AND WIN
+      </div>
+      <p>Each puzzle solved reveals a fragment. <span class="red">Every hint used costs you 10 or 20 POINTS.</span> The clock starts when you do, you can add multiple of 15 min to the clock with penalty of 15 points. There is no pause. There is no mercy. Good luck, Detective.</p>
+    </div>
+    <button class="start-btn" onclick="startHeist()">
+      <span>⚡ BEGIN THE HEIST</span>
+    </button>
+  </div>
+</div>
+
+
+<div id="page-hq" class="page">
+  <div class="hq-header">
+    <h1>◈ MISSION CONTROL — EVIDENCE VAULT ◈</h1>
+    <p>SOLVE ALL 4 CLUES · IDENTIFY THE THIEF · SUBMIT ROLL NUMBER</p>
+  </div>
+
+  <div class="clues-grid">
+
+    <!-- CLUE 1 -->
+    <div class="clue-card" id="card-1" onclick="openClue(1)">
+      <div class="clue-icon">🔐</div>
+      <div class="clue-number">CLUE #01</div>
+      <div class="clue-title">The Encrypted Image</div>
+      <div class="clue-desc">An image holds the first fragment. Solve the cipher puzzle to obtain the decryption key. Use the key to unlock what's hidden, then decode the locked PDF with the password you earn.</div>
+      <span class="clue-status open" id="status-1">OPEN</span>
+    </div>
+
+    <!-- CLUE 2 -->
+    <div class="clue-card" id="card-2" onclick="openClue(2)">
+      <div class="clue-icon">💻</div>
+      <div class="clue-number">CLUE #02</div>
+      <div class="clue-title">The Digital Breadcrumb</div>
+      <div class="clue-desc">A mysterious webpage was found on the thief's browser history. Navigate through the embedded challenge to extract the third piece of the puzzle.</div>
+      <span class="clue-status open" id="status-2">OPEN</span>
+    </div>
+
+    <!-- CLUE 3 -->
+    <div class="clue-card" id="card-3" onclick="openClue(3)">
+      <div class="clue-icon">📹</div>
+      <div class="clue-number">CLUE #03</div>
+      <div class="clue-title">The Surveillance Tape</div>
+      <div class="clue-desc">Intercepted audio from the night of the heist. LISTEN carefully — the thief left behind audio evidence. Play the audio or download it for closer inspection.</div>
+      <span class="clue-status open" id="status-3">OPEN</span>
+    </div>
+
+
+    <div class="clue-card" id="card-4" onclick="openClue(4)">
+      <div class="clue-icon">🧩</div>
+      <div class="clue-number">CLUE #04</div>
+      <div class="clue-title">The Final Cipher</div>
+      <div class="clue-desc">A corrupted image protects the final piece. Answer the quiz correctly to prove your detective skills and unlock the last fragment of the thief's identity.</div>
+      <span class="clue-status open" id="status-4">OPEN</span>
+    </div>
+
+  </div>
+
+  <div class="final-section">
+    <div class="final-box">
+      <h2>🎯 IDENTIFY THE THIEF</h2>
+      <p>Enter the roll number assembled from all 4 clues. Format: <strong style="color:var(--gold)">XX 00 X 000</strong></p>
+      <div class="roll-input-group">
+        <input type="text" class="roll-segment w2" id="rn-dept" maxlength="2" placeholder="XX" oninput="this.value=this.value.toUpperCase()">
+        <div class="roll-sep">–</div>
+        <input type="text" class="roll-segment w2" id="rn-year" maxlength="2" placeholder="00">
+        <div class="roll-sep">–</div>
+        <input type="text" class="roll-segment w1" id="rn-prog" maxlength="1" placeholder="X" oninput="this.value=this.value.toUpperCase()">
+        <div class="roll-sep">–</div>
+        <input type="text" class="roll-segment w3" id="rn-num" maxlength="3" placeholder="XXX">
+      </div>
+      <button class="submit-btn" onclick="submitAnswer()">▶ SUBMIT IDENTIFICATION</button>
+      <div id="submit-msg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="page-success" class="page">
+  <div class="success-content">
+    <div class="trophy">🏆</div>
+    <h1>CASE CLOSED!</h1>
+    <h2>THE THIEF HAS BEEN IDENTIFIED</h2>
+    <div class="result-card">
+      <div class="result-row"><span class="rl">THIEF IDENTIFIED</span><span class="rv green" id="res-roll">—</span></div>
+      <div class="result-row"><span class="rl">TIME REMAINING</span><span class="rv" id="res-time">—</span></div>
+      <div class="result-row"><span class="rl">HINTS USED</span><span class="rv red" id="res-hints">0</span></div>
+      <div class="result-row"><span class="rl">HINT PENALTY</span><span class="rv red" id="res-penalty">0 pts</span></div>
+      <div class="result-row"><span class="rl">TOTAL PENALTY</span><span class="rv green" id="res-score">—</span></div>
+    </div>
+    <p style="font-size:12px;color:#4a6a7a;letter-spacing:2px;">SHOW THIS SCREEN TO THE EVENT ORGANIZER</p>
+  </div>
+</div>
+
+
+
+<!-- CLUE 1 MODAL -->
+<div id="modal-1" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>🔐 CLUE #01 — THE ENCRYPTED IMAGE</h2>
+      <button class="modal-close" onclick="closeModal(1)">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Encrypted Image -->
+      <div class="encrypted-img-container" id="enc-img-box">
+        <img src="output.png" alt="Encrypted Evidence" id="enc-img">
+        <div class="img-lock-overlay">
+          <div class="lock-icon">🔒</div>
+          <p>ENTER KEY TO DECRYPT</p>
+        </div>
+      </div>
+
+      <!-- Puzzle to get image key -->
+      <div class="puzzle-section">
+        <label>▸ PUZZLE 1A — SOLVE TO GET IMAGE DECRYPTION KEY</label>
+        <div class="riddle">
+          "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. Every system fears me, yet I power every machine. I am the pulse of the digital world. What am I?"
+          <br><br>
+          <em style="color:#5a7a8a;font-size:11px;">💡 The answer is one word. Enter it below to decrypt the image.</em>
+        </div>
+        <input type="text" class="puzzle-input" id="key1a" placeholder="ENTER KEY" maxlength="20" oninput="this.value=this.value.toUpperCase()">
+        <button class="check-btn" onclick="checkKey1A()">▶ DECRYPT IMAGE</button>
+        <div id="msg-1a"></div>
+      </div>
+
+      <!-- Puzzle to get PDF password -->
+      <div class="puzzle-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
+        <label>▸ PUZZLE 1B — SOLVE TO UNLOCK THE PDF PASSWORD</label>
+        <div class="riddle">
+          The vault code is hidden in plain sight:<br><br>
+          <code style="color:var(--gold);font-size:15px;letter-spacing:3px;">
+            01010100  01100001  01100011  01001000  01111001 01101111  01101110  00110010  00101110  00110000
+          </code>
+          <br><br>
+          <em style="color:#5a7a8a;font-size:11px;">💡 Decode the binary. The result is your PDF password.</em>
+        </div>
+        <input type="text" class="puzzle-input" id="key1b" placeholder="ENTER PASSWORD" maxlength="20">
+        <button class="check-btn" onclick="checkKey1B()">▶ UNLOCK PDF</button>
+        <div id="msg-1b"></div>
+        <div class="pdf-password-display" id="pdf-pass-reveal">PDF PASSWORD: <span id="pdf-pass-text"></span></div>
+      </div>
+
+      <!-- PDF Download Section -->
+      <div class="pdf-card" id="pdf-download-card">
+        <div class="pdf-icon">📄</div>
+        <h3>CLASSIFIED DOCUMENT — ENCRYPTED</h3>
+        <p>This PDF is password-protected. Solve Puzzle 1B to reveal the password, then use it to open the document.</p>
+        <a href="Hint PDF.pdf" download class="external-link-btn" style="display:inline-block;width:auto;padding:12px 32px;">⬇ DOWNLOAD PDF</a>
+        <div class="pdf-status">STATUS: 🔒 PASSWORD REQUIRED · SOLVE PUZZLE 1B FIRST</div>
+      </div>
+
+      <!-- Hints -->
+      <div class="hints-container">
+        <h4>⚠ HINTS — HINT 1 COSTS 10 POINTS · HINT 2 COSTS 20 POINTS</h4>
+        <div id="hint-1-1-btn">
+          <button class="hint-btn" onclick="requestHint('1-1','h1')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 1 for Clue 1 — I need a nudge on the riddle</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−10 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-1-1-content"></div>
+        <div id="hint-1-2-btn">
+          <button class="hint-btn" onclick="requestHint('1-2','h2')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 2 for Clue 1 — I need help with the binary</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−20 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-1-2-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLUE 2 MODAL -->
+<div id="modal-2" class="modal-overlay">
+  <div class="modal-box" style="max-width:800px">
+    <div class="modal-header">
+      <h2>💻 CLUE #02 — THE DIGITAL BREADCRUMB</h2>
+      <button class="modal-close" onclick="closeModal(2)">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:#5a7a8a;letter-spacing:2px;margin-bottom:16px;">RECOVERED FROM BROWSER CACHE — HANDLE WITH CARE</p>
+
+      <div class="iframe-wrapper">
+        <iframe id="clue2-iframe" srcdoc="
+          <!DOCTYPE html>
+          <html>
+          <head>
+          <style>
+            body { background:#050a0e; color:#c8d8e8; font-family:monospace; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; flex-direction:column; text-align:center; padding:24px; }
+            h1 { color:#f5c842; font-size:18px; letter-spacing:4px; margin-bottom:16px; }
+            p { color:#5a8a9a; font-size:13px; line-height:1.8; max-width:480px; }
+            .code-display { background:#0a1520; border:1px solid rgba(0,245,255,0.3); padding:20px; margin:20px auto; letter-spacing:6px; color:#39ff14; font-size:22px; }
+            .note { color:#3a5a6a; font-size:11px; letter-spacing:2px; margin-top:20px; }
+          </style>
+          </head>
+          <body>
+            <h1>⚠ CLASSIFIED TERMINAL ⚠</h1>
+            <p>You have accessed the thief's last known digital footprint. The third fragment of the roll number is encoded here.</p>
+            <div class='code-display'>FRAGMENT III: B</div>
+            <p>This confirms the programme code. Cross-reference with the other fragments.</p>
+            <div class='note'>Go to the Next Web page</div>
+          </body>
+          </html>
+        "></iframe>
+      </div>
+
+      <a href="page2.html" target="_blank" class="external-link-btn" style="margin-top:12px;">↗ OPEN IN NEW TAB</a>
+
+      <!-- Hints -->
+      <div class="hints-container">
+        <h4>⚠ HINTS — HINT 1 COSTS 10 POINTS · HINT 2 COSTS 20 POINTS</h4>
+        <div id="hint-2-1-btn">
+          <button class="hint-btn" onclick="requestHint('2-1','h1')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 1 for Clue 2 — I'm lost on the page</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−10 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-2-1-content"></div>
+        <div id="hint-2-2-btn">
+          <button class="hint-btn" onclick="requestHint('2-2','h2')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 2 for Clue 2 — Give me a stronger hint</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−20 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-2-2-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- CLUE 3 MODAL — SURVEILLANCE AUDIO -->
+<div id="modal-3" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>📹 CLUE #03 — THE SURVEILLANCE TAPE</h2>
+      <button class="modal-close" onclick="closeModal(3)">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:#5a7a8a;letter-spacing:2px;margin-bottom:16px;">INTERCEPTED AUDIO — CLASSIFIED</p>
+
+      <!-- AUDIO PLAYER -->
+      <div class="video-wrapper">
+        <video controls id="clue3-audio">
+          <source src="TH.wav" type="audio/wav">
+          <p style="padding:40px;text-align:center;color:#5a7a8a;">
+            🔊 Audio file not found. Replace <code>TH.wav</code> with your actual audio file path.
+          </p>
+        </video>
+      </div>
+
+      <!-- Download button -->
+      <a href="TH.wav" download class="external-link-btn">⬇ DOWNLOAD SURVEILLANCE AUDIO</a>
+
+      <div style="margin-top:20px;background:rgba(0,245,255,0.04);border-left:3px solid var(--cyan);padding:14px 16px;font-size:12px;color:#7a9ab0;line-height:1.7;">
+        <strong style="color:var(--cyan)">INVESTIGATOR'S NOTE:</strong><br>
+        Listen to the audio carefully. The suspect may have left behind audio clues about their identity. The third fragment of the roll number may be embedded within.
+      </div>
+
+      <!-- Hints -->
+      <div class="hints-container">
+        <h4>⚠ HINTS — HINT 1 COSTS 10 POINTS · HINT 2 COSTS 20 POINTS</h4>
+        <div id="hint-3-1-btn">
+          <button class="hint-btn" onclick="requestHint('3-1','h1')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 1 for Clue 3 — What should I look for?</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−10 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-3-1-content"></div>
+        <div id="hint-3-2-btn">
+          <button class="hint-btn" onclick="requestHint('3-2','h2')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 2 for Clue 3 — I still can't find it</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−20 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-3-2-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLUE 4 MODAL -->
+<div id="modal-4" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>🧩 CLUE #04 — THE FINAL CIPHER</h2>
+      <button class="modal-close" onclick="closeModal(4)">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:#5a7a8a;letter-spacing:2px;margin-bottom:16px;">SCORE MORE THAN 3/5 TO UNLOCK THE IMAGE, IF YOU FAIL PENALTY OF 5 POINTS AND RETAKE THE QUIZ</p>
+
+      <!-- Locked Image -->
+      <div class="quiz-img-container" id="quiz-img-box">
+        <img src="last.png" alt="Final Evidence" id="quiz-img">
+        <div class="img-lock-overlay">
+          <div class="lock-icon">🔒</div>
+          <p>SCORE &gt;3 TO UNLOCK</p>
+        </div>
+      </div>
+
+      <div class="quiz-score" id="quiz-score-display">SCORE: 0 / 5</div>
+
+      <!-- Quiz -->
+      <div id="quiz-container">
+        <div class="quiz-question" id="quiz-q-text">Loading question…</div>
+        <div class="quiz-options" id="quiz-opts"></div>
+        <button class="quiz-next-btn" id="quiz-next" onclick="nextQuestion()">NEXT QUESTION ▶</button>
+      </div>
+      <div id="quiz-complete" style="display:none">
+        <div class="msg success">✅ SCORE &gt;3 — IMAGE UNLOCKED! The final fragment is revealed.</div>
+      </div>
+      <div id="quiz-fail" style="display:none">
+        <div class="msg error">❌ SCORE ≤3 — NOT ENOUGH CORRECT ANSWERS. −5 POINTS PENALTY APPLIED.</div>
+        <button class="check-btn" style="margin-top:10px;" onclick="retryQuiz()">↺ REATTEMPT QUIZ (−5 POINTS)</button>
+      </div>
+
+      <!-- Hints -->
+      <div class="hints-container">
+        <h4>⚠ HINTS — HINT 1 COSTS 10 POINTS · HINT 2 COSTS 20 POINTS</h4>
+        <div id="hint-4-1-btn">
+          <button class="hint-btn" onclick="requestHint('4-1','h1')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 1 for Clue 4 — Help with the quiz</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−10 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-4-1-content"></div>
+        <div id="hint-4-2-btn">
+          <button class="hint-btn" onclick="requestHint('4-2','h2')">
+            <span class="hb-icon">💡</span>
+            <span>HINT 2 for Clue 4 — I need more help</span>
+            <span style="margin-left:auto;font-size:10px;color:#5a3a3a">−20 POINTS</span>
+          </button>
+        </div>
+        <div id="hint-4-2-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="confirm-modal">
+  <div class="confirm-box">
+    <div class="warn-icon">⚠️</div>
+    <h3>USE HINT?</h3>
+    <p>Using <strong>Hint 1</strong> costs <strong style="color:var(--red)">10 points</strong>. Using <strong>Hint 2</strong> costs <strong style="color:var(--red)">20 points</strong>. This cannot be undone.<br><br>Are you sure you want to proceed?</p>
+    <div class="confirm-btns">
+      <button class="confirm-yes" id="confirm-yes-btn">YES, USE HINT</button>
+      <button class="confirm-no" onclick="cancelHint()">NO, CANCEL</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+
+
+// Browser-native SHA-256 (no external library needed)
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// XOR decode — only called in memory after hash check passes
+function xorDecode(hexStr, key) {
+  return hexStr.match(/.{2}/g).map(h => String.fromCharCode(parseInt(h,16) ^ key)).join('');
+}
+
+
+const H = {
+  k1a:  '8e1a5272bdd1d3e31686395747952c2384871c7f71f73dc660dcd0999f934582', 
+  k1b:  '096a31260d952898950731007a7c910bc2a720732bdb1baeb91ffcb6fac8b87e', 
+  dept: 'f0055891f09fff4839b344a4af5e0482696cab0e0bf307455661ba4056c787ee', 
+  year: '535fa30d7e25dd8a49f1536779734ec8286108d115da5045d77f3b4185d8f790', 
+  prog: '3f39d5c348e5b79d06e842c114e6cc571583bbf44e4b0ebfda1a01ec05745d43', 
+  num:  '7559ca4a957c8c82ba04781cd66a68d6022229fca0e8e88d8e487c96ee4446d0', 
+};
+
+const _ENC_PDF = '0b3e3c172630316d716f'; 
+const _ENC_KEY = 0x5F;
+
+
+const QUIZ_ANS_PLAIN = [
+  'Refuse to make any prediction at all.',
+  'The house is exactly at the geographic North Pole',
+  'North-East',
+  'Son',
+  '10:10 AM',
+];
+let QUIZ_ANS_HASHED = []; 
+(async () => {
+  QUIZ_ANS_HASHED = await Promise.all(QUIZ_ANS_PLAIN.map(a => sha256(a.toUpperCase())));
+})();
+
+
+const STATE = {
+  timerInterval: null,
+  secondsLeft: 3 * 60 * 60,
+  started: false,
+  hintsUsed: 0,
+  totalPenaltyPoints: 0,
+  pendingHint: null,
+  pendingHintLevel: null,
+  clue1ImageUnlocked: false,
+  clue1PdfUnlocked: false,
+  quizScore: 0,
+  quizIndex: 0,
+  quizAnswered: false,
+  quizComplete: false,
+};
+
+const HINTS = {
+  '1-1': "Think about what travels through wires and gives computers life. It's invisible but absolutely essential. Every circuit depends on it.",
+  '1-2': "Each group of 8 binary digits is one ASCII character. Convert each 8-bit group and string them together.",
+  '2-1': "When Things dont work collectively, we break it in peices and do that",
+  '2-2': "Inspect tool is a great feature for websites,solve the anamoly and then proceed",
+  '3-1': "Focus on the audio track — the thief may have encoded information using Morse code, frequency shifts, or spoken digits.",
+  '3-2': "Look for text embedded in the audio at some mark. Not everything needs decrypting.",
+  '4-1': "The quiz tests logic, directions, and reasoning. Read each question very carefully before answering.",
+  '4-2': "For the direction question, set up a coordinate grid. For the relationship question, trace each family link one step at a time."
+};
+
+
+const QUIZ = [
+  {
+    q: "A prisoner is told: If you correctly predict whether you will be executed tomorrow, we will change the outcome so your prediction becomes wrong. If you predict incorrectly, we will keep the current plan. Which prediction gives the prisoner the best logical chance to avoid execution?",
+    opts: ['Predict: "I will not be executed."', 'Predict: "I will be executed."', 'Refuse to make any prediction at all.', 'Predict randomly using a coin flip.'],
+  },
+  {
+    q: "In the riddle, you are told there is a house with four walls and all of them face south. What key conclusion about the house's location makes this possible?",
+    opts: ['The house is directly on the Equator where directions wrap around', 'The house is on a small island surrounded by ocean on all sides', 'The house is exactly at the geographic North Pole', 'The house is on top of a tall mountain in the Southern Hemisphere'],
+  },
+  {
+    q: "M is East of D. K is West of F and F is South of D. Then M is in which direction with respect to K?",
+    opts: ['South-West', 'North-West', 'North-East', 'South'],
+  },
+  {
+    q: "Pointing to a man, a woman said, 'His mother is the daughter of my mother's only daughter.' How is this man related to the woman?",
+    opts: ['Son', 'Father', 'Brother', 'None of these'],
+  },
+  {
+    q: "Buses leave for Chennai every 30 minutes from a bus depot. At the same time, the staff told a passenger that the bus to Chennai had left 10 minutes ago. The next bus will leave at 10:30 am. What was the time when the staff gave this information?",
+    opts: ['10:00 AM', '10:20 AM', '10:10 AM', '09:50 AM'],
+  },
+];
+
+
+function startHeist() {
+  if (STATE.started) return;
+  STATE.started = true;
+  showPage('hq');
+  initQuiz();
+  STATE.timerInterval = setInterval(tickTimer, 1000);
+}
+
+function tickTimer() {
+  if (STATE.secondsLeft <= 0) {
+    clearInterval(STATE.timerInterval);
+    document.getElementById('timer-display').textContent = '00:00:00';
+    document.getElementById('timer-display').classList.add('danger');
+    timeUp();
+    return;
+  }
+  STATE.secondsLeft--;
+  updateTimerDisplay();
+  if (STATE.secondsLeft <= 600) {
+    document.getElementById('timer-display').classList.add('danger');
+  }
+}
+
+function updateTimerDisplay() {
+  const h = Math.floor(STATE.secondsLeft / 3600);
+  const m = Math.floor((STATE.secondsLeft % 3600) / 60);
+  const s = STATE.secondsLeft % 60;
+  document.getElementById('timer-display').textContent =
+    String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function timeUp() {
+  alert('⏰ TIME IS UP! The heist window has closed. Please report to the organizer.');
+}
+
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+}
+
+
+function closeModal(n) {
+  document.getElementById('modal-' + n).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', function(e) {
+    if (e.target === this) {
+      const id = this.id.replace('modal-','');
+      closeModal(id);
+    }
+  });
+});
+
+
+async function checkKey1A() {
+  const val = document.getElementById('key1a').value.trim().toUpperCase();
+  const inp = document.getElementById('key1a');
+  const msg = document.getElementById('msg-1a');
+  const h = await sha256(val);
+  if (h === H.k1a) {
+    inp.classList.remove('wrong');
+    inp.classList.add('correct');
+    msg.innerHTML = '<div class="msg success">✅ CORRECT! Image decrypted. Scroll up to view the evidence.</div>';
+    document.getElementById('enc-img-box').classList.add('revealed');
+    STATE.clue1ImageUnlocked = true;
+    checkClue1Complete();
+  } else {
+    inp.classList.remove('correct');
+    inp.classList.add('wrong');
+    msg.innerHTML = '<div class="msg error">❌ INCORRECT KEY. Try again.</div>';
+    setTimeout(() => inp.classList.remove('wrong'), 600);
+  }
+}
+
+
+async function checkKey1B() {
+  const val = document.getElementById('key1b').value.trim();
+  const inp = document.getElementById('key1b');
+  const msg = document.getElementById('msg-1b');
+  const h = await sha256(val.toUpperCase());
+  if (h === H.k1b) {
+    inp.classList.remove('wrong');
+    inp.classList.add('correct');
+    msg.innerHTML = '<div class="msg success">✅ CORRECT! PDF password revealed below.</div>';
+    
+    const decoded = xorDecode(_ENC_PDF, _ENC_KEY);
+    document.getElementById('pdf-pass-text').textContent = decoded;
+    document.getElementById('pdf-pass-reveal').classList.add('visible');
+    STATE.clue1PdfUnlocked = true;
+    checkClue1Complete();
+  } else {
+    inp.classList.remove('correct');
+    inp.classList.add('wrong');
+    msg.innerHTML = '<div class="msg error">❌ WRONG PASSWORD. Decode the binary carefully.</div>';
+    setTimeout(() => inp.classList.remove('wrong'), 600);
+  }
+}
+
+function checkClue1Complete() {
+  if (STATE.clue1ImageUnlocked && STATE.clue1PdfUnlocked) {
+    markSolved(1);
+  }
+}
+
+
+function openClue(n) {
+  document.getElementById('modal-' + n).classList.add('open');
+}
+
+function markSolved(n) {
+  const card = document.getElementById('card-' + n);
+  const status = document.getElementById('status-' + n);
+  card.classList.add('solved');
+  status.textContent = '✓ SOLVED';
+  status.className = 'clue-status solved';
+  if (!card.querySelector('.solved-badge')) {
+    const badge = document.createElement('div');
+    badge.className = 'solved-badge';
+    badge.textContent = '✓ SOLVED';
+    card.appendChild(badge);
+  }
+}
+
+
+function initQuiz() {
+  STATE.quizScore = 0;
+  STATE.quizIndex = 0;
+  STATE.quizComplete = false;
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = QUIZ[STATE.quizIndex];
+  if (!q) return;
+  document.getElementById('quiz-score-display').textContent = `SCORE: ${STATE.quizScore} / ${QUIZ.length}`;
+  document.getElementById('quiz-q-text').textContent = `Q${STATE.quizIndex + 1}. ${q.q}`;
+  const optsDiv = document.getElementById('quiz-opts');
+  optsDiv.innerHTML = '';
+  q.opts.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-opt';
+    btn.textContent = opt;
+    btn.onclick = () => answerQuiz(opt, btn);
+    optsDiv.appendChild(btn);
+  });
+  document.getElementById('quiz-next').classList.remove('show');
+  STATE.quizAnswered = false;
+}
+
+async function answerQuiz(answer, btn) {
+  if (STATE.quizAnswered) return;
+  STATE.quizAnswered = true;
+  const correctHash = QUIZ_ANS_HASHED[STATE.quizIndex];
+  const selectedHash = await sha256(answer.toUpperCase());
+  const allBtns = document.querySelectorAll('.quiz-opt');
+
+  const hashChecks = await Promise.all(
+    Array.from(allBtns).map(async b => ({ b, h: await sha256(b.textContent.toUpperCase()) }))
+  );
+  hashChecks.forEach(({ b, h }) => {
+    b.disabled = true;
+    if (h === correctHash) b.classList.add('correct');
+  });
+  if (selectedHash === correctHash) {
+    btn.classList.add('correct');
+    STATE.quizScore++;
+  } else {
+    btn.classList.add('wrong');
+  }
+  document.getElementById('quiz-score-display').textContent = `SCORE: ${STATE.quizScore} / ${QUIZ.length}`;
+  if (STATE.quizIndex < QUIZ.length - 1) {
+    document.getElementById('quiz-next').classList.add('show');
+  } else {
+    setTimeout(finishQuiz, 600);
+  }
+}
+
+function nextQuestion() {
+  STATE.quizIndex++;
+  renderQuestion();
+}
+
+function finishQuiz() {
+  document.getElementById('quiz-container').style.display = 'none';
+  if (STATE.quizScore > 3) {
+    STATE.quizComplete = true;
+    document.getElementById('quiz-complete').style.display = 'block';
+    document.getElementById('quiz-img-box').classList.add('revealed');
+    markSolved(4);
+  } else {
+    STATE.totalPenaltyPoints += 5;
+    updatePenaltyDisplay();
+    document.getElementById('quiz-fail').style.display = 'block';
+  }
+}
+
+function retryQuiz() {
+  document.getElementById('quiz-fail').style.display = 'none';
+  document.getElementById('quiz-container').style.display = 'block';
+  STATE.quizScore = 0;
+  STATE.quizIndex = 0;
+  STATE.quizComplete = false;
+  renderQuestion();
+}
+
+
+function requestHint(hintId, level) {
+  STATE.pendingHint = hintId;
+  STATE.pendingHintLevel = level;
+  document.getElementById('confirm-modal').classList.add('open');
+  document.getElementById('confirm-yes-btn').onclick = () => confirmHint();
+}
+
+function confirmHint() {
+  document.getElementById('confirm-modal').classList.remove('open');
+  const hintId = STATE.pendingHint;
+  const level = STATE.pendingHintLevel;
+  if (!hintId) return;
+
+  const pts = (level === 'h2') ? 20 : 10;
+  STATE.hintsUsed++;
+  STATE.totalPenaltyPoints += pts;
+  updatePenaltyDisplay();
+  document.getElementById('hint-count').textContent = STATE.hintsUsed;
+
+  const btnDiv = document.getElementById('hint-' + hintId + '-btn');
+  if (btnDiv) {
+    const btn = btnDiv.querySelector('button');
+    if (btn) btn.disabled = true;
+  }
+
+  const contentDiv = document.getElementById('hint-' + hintId + '-content');
+  if (contentDiv) {
+    contentDiv.innerHTML = `<div class="hint-content">💡 ${HINTS[hintId] || 'Hint not available.'}<div class="hint-penalty">🔻 −${pts} POINTS APPLIED</div></div>`;
+  }
+
+  STATE.pendingHint = null;
+  STATE.pendingHintLevel = null;
+}
+
+function cancelHint() {
+  document.getElementById('confirm-modal').classList.remove('open');
+  STATE.pendingHint = null;
+  STATE.pendingHintLevel = null;
+}
+
+function updatePenaltyDisplay() {
+  const el = document.getElementById('penalty-display');
+  if (el) el.textContent = STATE.totalPenaltyPoints;
+}
+
+
+function buyTime() {
+  if (!STATE.started) {
+    alert('⚠ Start the heist first!');
+    return;
+  }
+  const ok = confirm('Add +15 minutes to the clock for a −15 point penalty?\n\nThis cannot be undone.');
+  if (!ok) return;
+  STATE.secondsLeft = Math.min(STATE.secondsLeft + 15 * 60, 3 * 60 * 60);
+  STATE.totalPenaltyPoints += 15;
+  updateTimerDisplay();
+  updatePenaltyDisplay();
+  if (STATE.secondsLeft > 600) {
+    document.getElementById('timer-display').classList.remove('danger');
+  }
+}
+
+
+async function submitAnswer() {
+  const dept = document.getElementById('rn-dept').value.trim().toUpperCase();
+  const year = document.getElementById('rn-year').value.trim();
+  const prog = document.getElementById('rn-prog').value.trim().toUpperCase();
+  const num  = document.getElementById('rn-num').value.trim();
+  const msg  = document.getElementById('submit-msg');
+
+  if (!dept || !year || !prog || !num) {
+    msg.innerHTML = '<div class="msg error">❌ INCOMPLETE. Fill all fields.</div>';
+    return;
+  }
+
+  const [hd, hy, hp, hn] = await Promise.all([
+    sha256(dept), sha256(year), sha256(prog), sha256(num)
+  ]);
+
+  if (hd === H.dept && hy === H.year && hp === H.prog && hn === H.num) {
+    const roll = `${dept} ${year} ${prog} ${num}`;
+    showResult(roll);
+  } else {
+    msg.innerHTML = '<div class="msg error">❌ INCORRECT IDENTIFICATION. Re-examine the evidence.</div>';
+  }
+}
+document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+function showResult(roll) {
+  clearInterval(STATE.timerInterval);
+
+  const h = Math.floor(STATE.secondsLeft / 3600);
+  const m = Math.floor((STATE.secondsLeft % 3600) / 60);
+  const s = STATE.secondsLeft % 60;
+  const timeLeft = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+
+  document.getElementById('res-roll').textContent = roll;
+  document.getElementById('res-time').textContent = timeLeft;
+  document.getElementById('res-hints').textContent = STATE.hintsUsed;
+  document.getElementById('res-penalty').textContent = `${STATE.totalPenaltyPoints} pts`;
+  document.getElementById('res-score').textContent = `Total Penalty: ${STATE.totalPenaltyPoints} points`;
+
+  showPage('success');
+}
+</script>
+</body>
+</html>
